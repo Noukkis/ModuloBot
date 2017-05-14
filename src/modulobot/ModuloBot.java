@@ -7,10 +7,11 @@ package modulobot;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Enumeration;
 import java.util.Scanner;
 import java.util.logging.Level;
+import java.util.logging.LogManager;
 import java.util.logging.Logger;
-import java.util.logging.MemoryHandler;
 import modulobot.modules.ModuleHelper;
 import javax.security.auth.login.LoginException;
 import modulobot.bot.Bot;
@@ -34,14 +35,12 @@ public class ModuloBot {
     public static void main(String[] args) {
         boolean ok = false;
         while (!ok) {
-            Linker linker = null;
             try {
                 System.out.println("Choose the port for remote connection :");
                 int port = new Scanner(System.in).nextInt();
-                linker = new Linker(port);
+                Linker linker = new Linker(port);
                 ok = linker.tryToConnect(true) && createBot(linker.readLine(), linker);
             } catch (Exception ex) {
-                ex.printStackTrace();
                 System.out.println("Failed to connect");
             }
         }

@@ -19,6 +19,7 @@ import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.event.EventListenerList;
 import modulobot.Constantes;
@@ -35,7 +36,6 @@ import net.dv8tion.jda.core.hooks.EventListener;
 public class Bot implements EventListener {
 
     private EventListenerList listeners;
-    private String prefix;
     private ModuleHelper moduleHelper;
     private Commands cmd;
     private Linker linker;
@@ -45,7 +45,6 @@ public class Bot implements EventListener {
     public Bot(ModuleHelper moduleCtrl, Linker linker) {
         listeners = new EventListenerList();
         this.moduleHelper = moduleCtrl;
-        prefix = "!";
         cmd = new Commands(this);
         this.linker = linker;
         LOGGER.info("Bot created");
@@ -122,12 +121,12 @@ public class Bot implements EventListener {
 
     @Override
     public void onEvent(Event event) {
-        if (event instanceof MessageReceivedEvent && ((MessageReceivedEvent) event).getMessage().getContent().startsWith(prefix + prefix)
+        if (event instanceof MessageReceivedEvent && ((MessageReceivedEvent) event).getMessage().getContent().startsWith(moduleHelper.getPrefix() + moduleHelper.getPrefix())
                 && !((MessageReceivedEvent) event).getAuthor().isBot()) {
             ((MessageReceivedEvent) event).getChannel().sendMessage(cmd.interpret(((MessageReceivedEvent) event).getMessage().getContent())).queue();
-        } else if (event instanceof MessageReceivedEvent && ((MessageReceivedEvent) event).getMessage().getContent().startsWith(prefix)
+        } else if (event instanceof MessageReceivedEvent && ((MessageReceivedEvent) event).getMessage().getContent().startsWith(moduleHelper.getPrefix())
                 && !((MessageReceivedEvent) event).getAuthor().isBot()) {
-            PrefixedMessageReceivedEvent newEvent = new PrefixedMessageReceivedEvent((MessageReceivedEvent) event, prefix);
+            PrefixedMessageReceivedEvent newEvent = new PrefixedMessageReceivedEvent((MessageReceivedEvent) event, moduleHelper.getPrefix());
             for (Module module : listeners.getListeners(Module.class)) {
                 module.onPrefixedMessageReceived(newEvent);
             }
@@ -198,7 +197,6 @@ public class Bot implements EventListener {
             module.stop();
             linker.println(module.getName() + " stopped");
         }
-        LOGGER.warning("Shutted down");
         listeners = new EventListenerList();
         moduleHelper.getJda().shutdown();
         return "Shutted down";
@@ -224,5 +222,10 @@ public class Bot implements EventListener {
             }
         }
         return res;
+    }
+    
+    public String setPrefix(String s){
+        moduleHelper.setPrefix(s);
+        return "Prefix changed to " + s;
     }
 }

@@ -5,10 +5,18 @@
  */
 package modulobot.console;
 
+
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Scanner;
+import java.util.logging.FileHandler;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
+import modulobot.Constantes;
 import modulobot.bot.Bot;
+import modulobot.logs.HTMLFormatter;
 import modulobot.modules.Module;
 import modulobot.network.Linker;
 
@@ -21,11 +29,19 @@ public class CommandsInterpreter implements Runnable {
     private Bot bot;
     private Linker linker;
     private boolean running;
+    private static final Logger LOGGER = Logger.getLogger(CommandsInterpreter.class.getName());
 
     public CommandsInterpreter(Bot bot, Linker linker) {
         this.bot = bot;
         this.linker = linker;
         running = true;
+        try {
+            Handler handler = new FileHandler(Constantes.LOGS_FOLDER  + "commands.log");
+            handler.setFormatter(new SimpleFormatter());
+            LOGGER.addHandler(handler);
+        } catch (IOException | SecurityException ex) {
+            Logger.getGlobal().log(Level.SEVERE, "Can't handle command logger into commands.log file", ex);
+        }
     }
 
     @Override
@@ -97,6 +113,9 @@ public class CommandsInterpreter implements Runnable {
     }
 
     private String[] splitCommand(String s) {
+        if(s == null){
+            return new String[2];
+        }
         String[] command = new String[2];
         command[0] = s.split(" ")[0];
         if (s.contains(" ")) {
