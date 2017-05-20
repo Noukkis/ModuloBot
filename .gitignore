@@ -1,2 +1,6 @@
 /build/
 /dist/
+/modules/
+/work/
+/logs/
+serv.key

@@ -62,7 +62,7 @@ public class Commands {
 
     private String getHelp(String name) {
         String res = "";
-        for (Module module : bot.getListeners().getListeners(Module.class)) {
+        for (Module module : bot.getModules()) {
             if (name.equals(module.getName()) || name.equals(module.getClass().getName())) {
                 res += "\n Help for " + name + "\n" + module.getHelp() + "\n";
             }

@@ -88,7 +88,7 @@ public class CommandsInterpreter implements Runnable {
         if (s == null) {
             return "help";
         }
-        for (Module module : bot.getListeners().getListeners(Module.class)) {
+        for (Module module : bot.getModules()) {
             if (module.getName().equalsIgnoreCase(s) && module.getModuleCtrl() != null) {
                 return module.getModuleCtrl().getHelp();
             }
@@ -97,7 +97,7 @@ public class CommandsInterpreter implements Runnable {
     }
 
     private String searchForModuleCommand(String[] command) {
-        ArrayList<Module> modules = new ArrayList(Arrays.asList(bot.getListeners().getListeners(Module.class)));
+        ArrayList<Module> modules = bot.getModules();
         for (Module module : modules) {
             if (module.getName().replaceAll(" ", "").equalsIgnoreCase(command[0]) && module.getModuleCtrl() != null) {
                 String[] moduleCommand = splitCommand(command[1]);

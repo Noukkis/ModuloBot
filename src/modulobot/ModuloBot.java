@@ -7,15 +7,16 @@ package modulobot;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Enumeration;
+import java.util.ArrayList;
 import java.util.Scanner;
+import java.util.logging.FileHandler;
 import java.util.logging.Level;
-import java.util.logging.LogManager;
 import java.util.logging.Logger;
-import modulobot.modules.ModuleHelper;
+import modulobot.modules.Helper;
 import javax.security.auth.login.LoginException;
 import modulobot.bot.Bot;
-import modulobot.logs.GlobalHandler;
+import modulobot.logs.LinkHandler;
+import modulobot.modules.Module;
 import modulobot.network.Linker;
 import net.dv8tion.jda.core.AccountType;
 import net.dv8tion.jda.core.JDA;
@@ -41,6 +42,7 @@ public class ModuloBot {
                 Linker linker = new Linker(port);
                 ok = linker.tryToConnect(true) && createBot(linker.readLine(), linker);
             } catch (Exception ex) {
+                ex.printStackTrace();
                 System.out.println("Failed to connect");
             }
         }
@@ -50,7 +52,8 @@ public class ModuloBot {
         new File(Constantes.LOGS_FOLDER).mkdirs();
         new File(Constantes.MODULES_LOGS_FOLDER).mkdirs();
         try {
-            Logger.getGlobal().addHandler(new GlobalHandler(linker, Constantes.LOGS_FOLDER +"global.log"));
+            Logger.getGlobal().addHandler(new LinkHandler(linker));
+            Logger.getGlobal().addHandler(new FileHandler(Constantes.LOGS_FOLDER + "global.log"));
         } catch (IOException | SecurityException ex) {
             Logger.getGlobal().log(Level.SEVERE, "Can't create Global Handler", ex);
         }
@@ -58,9 +61,10 @@ public class ModuloBot {
         try {
             JDA jda = new JDABuilder(AccountType.BOT).setToken(token).buildBlocking();
             linker.println("JDA built");
-            Bot bot = new Bot(new ModuleHelper(jda), linker);
+            Bot bot = new Bot(jda, linker);
             bot.launch();
             jda.addEventListener(bot);
+            shutdownSave(bot);
             ok = true;
         } catch (LoginException | IllegalArgumentException | AccountTypeException e) {
             System.out.println("The given token is invalid");
@@ -68,6 +72,15 @@ public class ModuloBot {
             System.out.println("An unexpected error occured on Bot's loading");
         }
         return ok;
+    }
+
+    private static void shutdownSave(Bot bot) {
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            @Override
+            public void run() {
+               bot.shutdown();
+            }
+        });
     }
 
 }

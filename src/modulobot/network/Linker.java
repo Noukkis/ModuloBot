@@ -5,12 +5,17 @@
  */
 package modulobot.network;
 
+import botLib.CryptedSocket;
+import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
+import java.io.InputStreamReader;
+import java.math.BigInteger;
 import java.net.ServerSocket;
 import java.security.GeneralSecurityException;
 import java.security.Key;
+import java.security.KeyFactory;
+import java.security.spec.RSAPublicKeySpec;
 
 /**
  *
@@ -26,17 +31,20 @@ public class Linker {
     public Linker(int port) throws Exception {
         this.port = port;
         serverSocket = new ServerSocket(port);
-        key = (Key) new ObjectInputStream(new FileInputStream("serv.key")).readObject();
+        String[] keyString = new BufferedReader(new InputStreamReader(new FileInputStream("serv.key"))).readLine().split("\\|");
+        RSAPublicKeySpec keySpec = new RSAPublicKeySpec(new BigInteger(keyString[0]), new BigInteger(keyString[1]));
+        key = KeyFactory.getInstance("RSA").generatePublic(keySpec);
     }
 
     public boolean tryToConnect(boolean isNew) {
         close();
-        try {            
+        try {
             cryptedSocket = new CryptedSocket(serverSocket.accept(), key);
             println(isNew ? "new" : "old");
             println("Connected");
             return true;
         } catch (IOException | GeneralSecurityException ex) {
+            ex.printStackTrace();
             close();
             return false;
         }
@@ -44,11 +52,11 @@ public class Linker {
 
     public String readLine() {
         String msg = cryptedSocket.readLine();
-        while(msg == null){
+        while (msg == null) {
             boolean ok;
             do {
-                 ok = tryToConnect(false);
-            } while(!ok);
+                ok = tryToConnect(false);
+            } while (!ok);
             msg = cryptedSocket.readLine();
         }
         return msg;
@@ -62,7 +70,7 @@ public class Linker {
 
     public void close() {
         try {
-            if(cryptedSocket != null){
+            if (cryptedSocket != null) {
                 cryptedSocket.getSocket().close();
             }
         } catch (IOException ex) {

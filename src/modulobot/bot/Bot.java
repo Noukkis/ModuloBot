@@ -5,7 +5,7 @@
  */
 package modulobot.bot;
 
-import modulobot.modules.ModuleHelper;
+import modulobot.modules.Helper;
 import modulobot.modules.Module;
 import modulobot.console.CommandsInterpreter;
 import modulobot.events.PrefixedMessageReceivedEvent;
@@ -19,12 +19,14 @@ import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.logging.Handler;
 import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
-import javax.swing.event.EventListenerList;
 import modulobot.Constantes;
-import modulobot.Helper;
+import modulobot.logs.LinkHandler;
 import modulobot.network.Linker;
+import net.dv8tion.jda.core.JDA;
 import net.dv8tion.jda.core.events.Event;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.core.hooks.EventListener;
@@ -35,23 +37,23 @@ import net.dv8tion.jda.core.hooks.EventListener;
  */
 public class Bot implements EventListener {
 
-    private EventListenerList listeners;
-    private ModuleHelper moduleHelper;
+    private ArrayList<Module> modules;
+    private Helper moduleHelper;
     private Commands cmd;
     private Linker linker;
 
     private final static Logger LOGGER = Logger.getGlobal();
 
-    public Bot(ModuleHelper moduleCtrl, Linker linker) {
-        listeners = new EventListenerList();
-        this.moduleHelper = moduleCtrl;
+    public Bot(JDA jda, Linker linker) {
+        modules = new ArrayList<>();
+        this.moduleHelper = new Helper(jda, modules);
         cmd = new Commands(this);
         this.linker = linker;
         LOGGER.info("Bot created");
     }
 
     private void loadModules() {
-        ArrayList<Module> modules = new ArrayList<>();
+        ArrayList<Module> modulesToLoad = new ArrayList<>();
         File directory = new File("modules");
         if (!directory.isDirectory()) {
             linker.println("modules directory not found");
@@ -78,7 +80,7 @@ public class Bot implements EventListener {
                         try {
                             if (Arrays.asList(Class.forName(name, true, loader).getSuperclass()).contains(Module.class)) {
                                 try {
-                                    modules.add((Module) Class.forName(name, true, loader).newInstance());
+                                    modulesToLoad.add((Module) Class.forName(name, true, loader).newInstance());
                                 } catch (InstantiationException ex) {
                                     linker.println("The " + name + " class of " + f.getName() + " is not instanciable");
                                 } catch (IllegalAccessException ex) {
@@ -97,14 +99,20 @@ public class Bot implements EventListener {
 
             }
 
-            for (Module module : modules) {
-                if (!Arrays.asList(listeners.getListeners(Module.class)).contains(module)) {
+            for (Module module : modulesToLoad) {
+                if (!modules.contains(module)) {
                     try {
-                        module.preload(moduleHelper);
+                        Handler linkHandler = new LinkHandler(linker);
+                        linkHandler.setFilter((LogRecord record) -> record.getLevel().equals(Level.SEVERE) || record.getLevel().equals(Level.WARNING));
+                        module.getLOGGER().addHandler(linkHandler);
+                        if(module.preload(moduleHelper)) {
                         linker.println(module.getClass().getName() + " loaded");
-                        listeners.add(Module.class, module);
+                        modules.add(module);
+                        } else {
+                            linker.println(module.getClass().getName() + " load failed");
+                        }
                     } catch (Exception e) {
-                        listeners.remove(Module.class, module);
+                        modules.remove(module);
                         linker.println("The " + module.getClass().getName() + " module can't be loaded (preload error)");
                     }
                 } else {
@@ -127,11 +135,11 @@ public class Bot implements EventListener {
         } else if (event instanceof MessageReceivedEvent && ((MessageReceivedEvent) event).getMessage().getContent().startsWith(moduleHelper.getPrefix())
                 && !((MessageReceivedEvent) event).getAuthor().isBot()) {
             PrefixedMessageReceivedEvent newEvent = new PrefixedMessageReceivedEvent((MessageReceivedEvent) event, moduleHelper.getPrefix());
-            for (Module module : listeners.getListeners(Module.class)) {
+            for (Module module : modules) {
                 module.onPrefixedMessageReceived(newEvent);
             }
         } else {
-            for (Module module : listeners.getListeners(Module.class)) {
+            for (Module module : modules) {
                 module.onEvent(event);
             }
         }
@@ -150,16 +158,16 @@ public class Bot implements EventListener {
     }
 
     public void reloadModules() {
-        for (Module module : listeners.getListeners(Module.class)) {
+        for (Module module : modules) {
             module.stop();
         }
-        listeners = new EventListenerList();
+        modules.clear();
         loadModules();
     }
 
     public String listModules() {
         String list = "\n----------------------\n\n";
-        for (Module module : listeners.getListeners(Module.class)) {
+        for (Module module : modules) {
             list += module.getName() + " - " + module.getClass().getName() + "\n" + module.getDescription() + "\n\n";
         }
         list += "----------------------\n";
@@ -169,11 +177,11 @@ public class Bot implements EventListener {
     public String stopModule(String string) {
         boolean exist = false;
         String res = "";
-        for (Module module : listeners.getListeners(Module.class)) {
+        for (Module module : modules) {
             if (module.getClass().getName().equals(string)) {
                 exist = true;
                 module.stop();
-                listeners.remove(Module.class, module);
+                modules.remove(module);
                 res = string + " stopped";
                 break;
             }
@@ -184,20 +192,21 @@ public class Bot implements EventListener {
         return res;
     }
 
-    public ModuleHelper getModuleHelper() {
+    public Helper getModuleHelper() {
         return moduleHelper;
     }
 
-    public EventListenerList getListeners() {
-        return listeners;
+    public ArrayList<Module> getModules() {
+        return modules;
     }
 
     public String shutdown() {
-        for (Module module : listeners.getListeners(Module.class)) {
+        System.out.println("shutdown");
+        for (Module module : modules) {
             module.stop();
             linker.println(module.getName() + " stopped");
         }
-        listeners = new EventListenerList();
+        modules.clear();
         moduleHelper.getJda().shutdown();
         return "Shutted down";
     }
